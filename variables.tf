@@ -22,14 +22,8 @@ variable "cidr_block" {
   default     = "10.0.10.0/24"
 }
 
-variable "map_public_ip_on_launch" {
-  description = "Specify true to indicate that instances launched into the subnet should be assigned a public IP address"
-  type        = bool
-  default     = false
-}
-
 variable "has_internet_access" {
-  description = "Whether this networl has internet access"
+  description = "Whether this network has internet access"
   type        = bool
   default     = false
 }
