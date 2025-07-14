@@ -1,33 +1,50 @@
 ---
-name: Terraform Module Releaser
-on:
-  pull_request:
-    types: [opened, reopened, synchronize, closed] # Closed required
-    branches:
-      - main
+name: Release
 
-permissions:
-  contents: write # Required for to push tags, create release, and push changes to the wiki
-  pull-requests: write # Required to comment on pull request
+on:
+  push:
+    branches: [ main, master ]
 
 jobs:
-  release:
+  tag:
     runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.tag_version.outputs.new_tag }}
+      new_version: ${{ steps.tag_version.outputs.new_version }}
+      changelog: ${{ steps.tag_version.outputs.changelog }}
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Terraform Module Releaser
-        uses: techpivot/terraform-module-releaser@v1
+      - name: Create Tag
+        id: tag_version
+        uses: mathieudutour/github-tag-action@v6.2
         with:
-          major-keywords: major update,breaking change
-          minor-keywords: feat,feature
-          patch-keywords: fix,chore,docs
-          default-first-tag: v1.0.0
-          terraform-docs-version: v0.20.0
-          delete-legacy-tags: true
-          disable-wiki: true
-          module-path-ignore: examples,tests,docs,docs/**,examples/**
-          module-change-exclude-patterns: .gitignore,*.md,docs/**,examples/**,*.tftest.hcl,tests/**
-          module-asset-exclude-patterns: .gitignore,*.md,*.tftest.hcl,tests/**
-          use-ssh-source-format: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          release_branches: "main,master"
+
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    needs:
+      - tag
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.tag.outputs.new_tag }}
+          name: Release v${{ needs.tag.outputs.new_version }}
+          body: ${{ needs.tag.outputs.changelog }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ env.PACKAGE }}
+            CHANGELOG.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
