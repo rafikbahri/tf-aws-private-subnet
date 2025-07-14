@@ -12,10 +12,9 @@ resource "aws_subnet" "subnet" {
   )
 }
 
-
 # Internet access for Private Subnet
 resource "aws_route_table" "private" {
-  count = var.has_internet_access ? 1 : 0
+  count  = var.has_internet_access ? 1 : 0
   vpc_id = var.vpc_id
 
   route {
