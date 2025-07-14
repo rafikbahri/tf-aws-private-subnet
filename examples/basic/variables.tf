@@ -1,3 +1,9 @@
+variable "region" {
+  type        = string
+  default     = "eu-west-3"
+  description = "AWS region"
+}
+
 variable "name" {
   description = "Subnet name"
   type        = string
