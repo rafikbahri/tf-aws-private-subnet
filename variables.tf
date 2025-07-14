@@ -25,7 +25,7 @@ variable "public_subnet_id" {
 variable "cidr_block" {
   description = "IPv4 CIDR block for the subnet"
   type        = string
-  default     = "10.0.1.0/24"
+  default     = "10.0.10.0/24"
 }
 
 variable "map_public_ip_on_launch" {
@@ -40,8 +40,8 @@ variable "has_internet_access" {
   default     = false
 }
 
-variable "private_internet_route_table_id" {
-  description = "Private internet route table ID"
+variable "ngw_id" {
+  description = "NAT Gateway ID for internet access"
   type        = string
   default     = ""
 }

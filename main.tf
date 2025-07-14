@@ -12,40 +12,25 @@ resource "aws_subnet" "subnet" {
   )
 }
 
-# Internet for private subnets
 
-# Elastic IP for NAT Gateway
-resource "aws_eip" "nat" {
-  domain = "vpc"
-}
-
-# NAT Gateway
-resource "aws_nat_gateway" "ngw" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = var.public_subnet_id
-
-  tags = {
-    Name = "MainNatGateway"
-  }
-}
-
-# Route table for private subnet
+# Internet access for Private Subnet
 resource "aws_route_table" "private" {
+  count = var.has_internet_access ? 1 : 0
   vpc_id = var.vpc_id
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.ngw.id
+    nat_gateway_id = var.ngw_id
   }
 
   tags = {
-    Name = "PrivateInternetRouteTable"
+    Name = "PrivateSubnetInternetRouteTable"
   }
 }
 
 resource "aws_route_table_association" "internet" {
   count          = var.has_internet_access ? 1 : 0
   subnet_id      = aws_subnet.subnet.id
-  route_table_id = aws_route_table.private.id
+  route_table_id = aws_route_table.private[0].id
 }
 
