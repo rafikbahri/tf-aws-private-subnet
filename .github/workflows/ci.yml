@@ -1,34 +1,108 @@
----
 name: CI
-run-name: CI
-on: [push]
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  TF_VERSION: "1.12.2"
+  TFLINT_VERSION: "v0.58.0"
+
 jobs:
-  ci:
+  terraform-validate:
+    name: Terraform Validation
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.9.5
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Check out repository code
-        uses: actions/checkout@v4
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-3
+    - name: Terraform Format Check
+      run: terraform fmt -check -recursive -diff
+      continue-on-error: false
 
-      - name: Terraform Format
-        run: terraform fmt -check
+    - name: Terraform Init
+      run: terraform init -backend=false
 
-      - name: Terraform Init
-        run: terraform init
+    - name: Terraform Validate
+      run: terraform validate
 
-      - name: Terraform Validate
-        run: terraform validate
+  terraform-lint:
+    name: Terraform Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Terraform Plan
-        run: terraform plan
+    - name: Cache TFLint plugins
+      uses: actions/cache@v4
+      with:
+        path: ~/.tflint.d/plugins
+        key: ${{ runner.os }}-tflint-${{ hashFiles('.tflint.hcl') }}
+
+    - name: Setup TFLint
+      uses: terraform-linters/setup-tflint@v4
+      with:
+        tflint_version: ${{ env.TFLINT_VERSION }}
+
+    - name: Show TFLint version
+      run: tflint --version
+
+    - name: Init TFLint
+      run: tflint --init
+
+    - name: Run TFLint
+      run: tflint -f compact
+
+  terraform-security:
+    if: false
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run Checkov
+      id: checkov
+      uses: bridgecrewio/checkov-action@master
+      with:
+        directory: .
+        framework: terraform
+        output_format: sarif
+        output_file_path: reports/results.sarif
+        skip_check: CKV_AWS_18,CKV_AWS_21  # Skip MFA and versioning checks for demo
+
+    - name: Upload Checkov results to GitHub Security
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: reports/results.sarif
+
+  terraform-docs:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.event.pull_request.head.ref }}
+
+    - name: Generate docs
+      uses: terraform-docs/gh-actions@v1.2.0
+      with:
+        working-dir: .
+        output-file: README.md
+        output-method: inject
+        git-push: true
+        token: ${{ secrets.GITHUB_TOKEN }}
